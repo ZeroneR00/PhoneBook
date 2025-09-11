@@ -2,7 +2,7 @@
 
 
 import { useState } from "react";
-import { contactsData, phoneBookAPI, Contact } from "./contactsData";
+import { phoneBookAPI, Contact } from "./contactsData";
 import EditableInput from "./EditableInput";
 
 
@@ -21,9 +21,14 @@ export default function PhoneBook() {
         setContacts(phoneBookAPI.getAllContacts());
     }
 
+    const deleteIdHandler = (id: number) => {
+        phoneBookAPI.deleteContact(id);
+        setContacts(phoneBookAPI.getAllContacts());
+    }
+
     const startEdit = (id: number) => {
         setEditingId(id)
-        console.log('сработало' + id)
+        console.log('Редактирование началось для ID: ' + id);
     }
 
     const stopEdit = () => {
@@ -68,6 +73,7 @@ export default function PhoneBook() {
                                 onStopEdit={stopEdit}
                                 onEditName={editNameContactHandler}
                                 onEditPhone={editNumContactHandler}
+                                onDeleteId={deleteIdHandler}
                             />
                         ))}
                     </tbody>
@@ -76,7 +82,6 @@ export default function PhoneBook() {
                             <td colSpan={3} className="text-center p-4">
                                 <button onClick={addContactHandler}
                                     className="bg-blue-500 text-white px-4 py-2 rounded-md mx-2">Add</button>
-                                <button className="bg-red-500 text-white px-4 py-2 rounded-md mx-2">Delete</button>
                             </td>
                         </tr>
                     </tfoot>

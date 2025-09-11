@@ -40,7 +40,7 @@ export const contactsData: Contact[] = [
 export const phoneBookAPI = {
     // Получить все контакты
     getAllContacts: (): Contact[] => {
-        return contactsData;
+        return [...contactsData];
     },
     
     // Добавить новый контакт
@@ -50,7 +50,7 @@ export const phoneBookAPI = {
             id: Math.max(...contactsData.map(c => c.id)) + 1
         };
         contactsData.push(newContact);
-        return newContact;
+        return {...newContact};
     },
     
     // Удалить контакт по ID
@@ -68,7 +68,7 @@ export const phoneBookAPI = {
         const contact = contactsData.find(c => c.id === id);
         if (contact) {
             Object.assign(contact, updates);
-            return contact;
+            return {...contact};
         }
         return null;
     }
