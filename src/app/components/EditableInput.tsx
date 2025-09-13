@@ -64,12 +64,12 @@ export default function EditableInput({
                     <td className="px-4 py-2">{contact.id}</td>
                     <td className="px-4 py-2 ">
                         <button
-                            className="bg-amber-300 text-white px-4 py-2 rounded-md mx-2 w-20 "
+                            className="bg-amber-300 text-white px-4 py-2 rounded-md mx-2 w-20 hover:scale-105"
                             onClick={valueSlave}>
                             Save
                         </button>
                         <button
-                            className="bg-amber-900 text-white px-4 py-2 rounded-md mx-2 w-20 "
+                            className="bg-amber-900 text-white px-4 py-2 rounded-md mx-2 w-20 hover:scale-105 "
                             onClick={onStopEdit}>
                             Cancel
                         </button>
@@ -82,11 +82,11 @@ export default function EditableInput({
                     <td className="px-4 py-2">{contact.id}</td>
                     <td className="px-4 py-2">
                         <button
-                            className="bg-green-500 text-white px-4 py-2 rounded-md mx-2 w-20"
+                            className="bg-green-500 text-white px-4 py-2 rounded-md mx-2 w-20 hover:scale-105"
                             onClick={handleStartEdit}>
                             Edit
                         </button>
-                        <button className="bg-red-500 text-white px-4 py-2 rounded-md mx-2"
+                        <button className="bg-red-500 text-white px-4 py-2 rounded-md mx-2 hover:scale-105"
                             onClick={() => onDeleteId(contact.id)}>
                             Delete
                         </button>
