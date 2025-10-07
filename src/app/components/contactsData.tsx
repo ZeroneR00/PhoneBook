@@ -1,75 +1,86 @@
 // Интерфейс для контакта
-
 export interface Contact {
     id: number;
     name: string;
     phone: string;
-   
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
-// // Временная заглушка - массив контактов
-export const contactsData: Contact[] = [
-    {
-        id: 1,
-        name: "John Doe",
-        phone: "1234567890",
-    },
-    {
-        id: 2,
-        name: "Jane Doe",
-        phone: "0987654321",
-    },
-    {
-        id: 3,
-        name: "Bob Smith",
-        phone: "5551234567",
-    },
-    {
-        id: 4,
-        name: "Alice Johnson",
-        phone: "9876543210",
-    },
-    {
-        id: 5,
-        name: "Charlie Brown",
-        phone: "1112223333",
-    }
-];
-
-// Функции для работы с данными (имитация API)
+// API для работы с контактами через HTTP запросы
 export const phoneBookAPI = {
     // Получить все контакты
-    getAllContacts: (): Contact[] => {
-        return [...contactsData];
+    getAllContacts: async (): Promise<Contact[]> => {
+        try {
+            const response = await fetch('/api/contacts');
+            if (!response.ok) {
+                throw new Error('Не удалось получить контакты');
+            }
+            const contacts = await response.json();
+            return contacts;
+        } catch (error) {
+            console.error('Ошибка при получении контактов:', error);
+            return [];
+        }
     },
     
     // Добавить новый контакт
-    addContact: (contact: Omit<Contact, 'id'>): Contact => {
-        const newContact: Contact = {
-            ...contact,
-            id: Math.max(...contactsData.map(c => c.id)) + 1
-        };
-        contactsData.push(newContact);
-        return {...newContact};
+    addContact: async (contactData: { name: string; phone: string }): Promise<Contact | null> => {
+        try {
+            const response = await fetch('/api/contacts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(contactData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Не удалось добавить контакт');
+            }
+
+            const newContact = await response.json();
+            return newContact;
+        } catch (error) {
+            console.error('Ошибка при добавлении контакта:', error);
+            return null;
+        }
     },
     
     // Удалить контакт по ID
-    deleteContact: (id: number): boolean => {
-        const index = contactsData.findIndex(c => c.id === id);
-        if (index !== -1) {
-            contactsData.splice(index, 1);
-            return true;
+    deleteContact: async (id: number): Promise<boolean> => {
+        try {
+            const response = await fetch(`/api/contacts/${id}`, {
+                method: 'DELETE',
+            });
+
+            return response.ok;
+        } catch (error) {
+            console.error('Ошибка при удалении контакта:', error);
+            return false;
         }
-        return false;
     },
     
     // Обновить контакт
-    updateContact: (id: number, updates: Partial<Contact>): Contact | null => {
-        const contact = contactsData.find(c => c.id === id);
-        if (contact) {
-            Object.assign(contact, updates);
-            return {...contact};
+    updateContact: async (id: number, updates: { name?: string; phone?: string }): Promise<Contact | null> => {
+        try {
+            const response = await fetch(`/api/contacts/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updates),
+            });
+
+            if (!response.ok) {
+                throw new Error('Не удалось обновить контакт');
+            }
+
+            const updatedContact = await response.json();
+            return updatedContact;
+        } catch (error) {
+            console.error('Ошибка при обновлении контакта:', error);
+            return null;
         }
-        return null;
     }
 };

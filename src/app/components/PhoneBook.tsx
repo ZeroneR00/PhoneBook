@@ -1,7 +1,6 @@
 "use client"
 
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { phoneBookAPI, Contact } from "./contactsData";
 import EditableInput from "./EditableInput";
 import {
@@ -10,67 +9,127 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion"
-
+import {
+    Card,
+    CardAction,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
+import Header from "./Header";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export default function PhoneBook() {
-
-    const [contacts, setContacts] = useState<Contact[]>(phoneBookAPI.getAllContacts());
+    const [contacts, setContacts] = useState<Contact[]>([]);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [newName, setNewName] = useState<string>("");
     const [newPhone, setNewPhone] = useState<string>("");
+    const [loading, setLoading] = useState<boolean>(true);
+    const [loginForm, actualLoginForm] = useState<boolean>(false);
 
-    const editNameContactHandler = (id: number, newName: string) => {
-        phoneBookAPI.updateContact(id, { name: newName });
-        setContacts(phoneBookAPI.getAllContacts());
-    }
 
-    const editNumContactHandler = (id: number, newPhone: string) => {
-        phoneBookAPI.updateContact(id, { phone: newPhone });
-        setContacts(phoneBookAPI.getAllContacts());
-    }
+    // Загружаем контакты при первом рендере
+    useEffect(() => {
+        loadContacts();
+    }, []);
 
-    const deleteIdHandler = (id: number) => {
-        phoneBookAPI.deleteContact(id);
-        setContacts(phoneBookAPI.getAllContacts());
-    }
+    const loadContacts = async () => {
+        setLoading(true);
+        try {
+            const contactsList = await phoneBookAPI.getAllContacts();
+            setContacts(contactsList);
+        } catch (error) {
+            console.error("Ошибка загрузки контактов:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const editNameContactHandler = async (id: number, newName: string) => {
+        try {
+            await phoneBookAPI.updateContact(id, { name: newName });
+            await loadContacts(); // Перезагружаем список
+        } catch (error) {
+            console.error("Ошибка обновления имени:", error);
+        }
+    };
+
+    const editNumContactHandler = async (id: number, newPhone: string) => {
+        try {
+            await phoneBookAPI.updateContact(id, { phone: newPhone });
+            await loadContacts(); // Перезагружаем список
+        } catch (error) {
+            console.error("Ошибка обновления телефона:", error);
+        }
+    };
+
+    const deleteIdHandler = async (id: number) => {
+        try {
+            const success = await phoneBookAPI.deleteContact(id);
+            if (success) {
+                await loadContacts(); // Перезагружаем список
+            } else {
+                alert("Не удалось удалить контакт");
+            }
+        } catch (error) {
+            console.error("Ошибка удаления контакта:", error);
+        }
+    };
 
     const startEdit = (id: number) => {
-        setEditingId(id)
+        setEditingId(id);
         console.log('Редактирование началось для ID: ' + id);
-    }
+    };
 
     const stopEdit = () => {
         setEditingId(null);
     };
 
-    //новый кондакт обрабочкик
-    const addContactHandler = () => {
+    // Обработчик добавления нового контакта
+    const addContactHandler = async () => {
         // Проверяем, что поля не пустые
         if (newName.trim() === "" || newPhone.trim() === "") {
             alert("Пожалуйста, заполните все поля!");
             return;
         }
 
-        // Добавляем контакт с данными из полей ввода
-        const result = phoneBookAPI.addContact({
-            name: newName,    // Берем из поля ввода
-            phone: newPhone   // Берем из поля ввода
-        });
+        try {
+            const result = await phoneBookAPI.addContact({
+                name: newName,
+                phone: newPhone
+            });
 
-        // Обновляем список контактов
-        setContacts(phoneBookAPI.getAllContacts());
+            if (result) {
+                // Перезагружаем список контактов
+                await loadContacts();
 
-        // Очищаем поля ввода
-        setNewName("");
-        setNewPhone("");
+                // Очищаем поля ввода
+                setNewName("");
+                setNewPhone("");
 
-        console.log("Добавлен контакт:", result);
+                console.log("Добавлен контакт:", result);
+            } else {
+                alert("Не удалось добавить контакт");
+            }
+        } catch (error) {
+            console.error("Ошибка добавления контакта:", error);
+            alert("Произошла ошибка при добавлении контакта");
+        }
     };
+
+    if (loading) {
+        return <div className="text-center p-4">Загрузка контактов...</div>;
+    }
 
     return (
         <div>
+            <Header actualLoginForm={actualLoginForm} loginForm={loginForm} />
             <div className="flex flex-col w-full text-left border-collapse w-[80%]">
-                <h1 className="text-2xl font-bold">Phone Book</h1>
+
                 <table className="flex flex-col w-full text-left border-collapse w-[80%]">
                     <thead className="px-4 py-2">
                         <tr className="border-b border-gray-300">
@@ -80,46 +139,63 @@ export default function PhoneBook() {
                         </tr>
                     </thead>
                     <tbody>
-                        {contacts.map((contact) => (
-                            <EditableInput
-                                key={contact.id}
-                                contact={contact}
-                                editingId={editingId}
-                                onStartEdit={startEdit}
-                                onStopEdit={stopEdit}
-                                onEditName={editNameContactHandler}
-                                onEditPhone={editNumContactHandler}
-                                onDeleteId={deleteIdHandler}
-                            />
-                        ))}
+                        {contacts.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="px-4 py-2 text-center text-gray-500">
+                                    Контактов пока нет. Добавьте первый!
+                                </td>
+                            </tr>
+                        ) : (
+                            contacts.map((contact) => (
+                                <EditableInput
+                                    key={contact.id}
+                                    contact={contact}
+                                    editingId={editingId}
+                                    onStartEdit={startEdit}
+                                    onStopEdit={stopEdit}
+                                    onEditName={editNameContactHandler}
+                                    onEditPhone={editNumContactHandler}
+                                    onDeleteId={deleteIdHandler}
+                                />
+                            ))
+                        )}
                     </tbody>
                 </table>
+
                 <Accordion type="single" collapsible>
                     <AccordionItem value="item-1">
                         <AccordionTrigger>
-                            <div
-                                // onClick={() => setCollapseMode(true)}
-                                className="bg-blue-500 text-white px-4 py-2 hover:scale-105 rounded-md mx-2 ">
-                                Add
+                            <div className="bg-blue-500 text-white px-4 py-2 hover:scale-105 rounded-md mx-2">
+                                Add Contact
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
                             <div className="mt-5 mb-5 bg-gray-900 w-160 p-12 border border-gray-400">
-                                <div className="flex flex-row ">
+                                <div className="flex flex-row">
                                     <div>
-                                        <div className="mb-5"> <span className="mr-14"> Введите имя</span>
-                                            <input type="text" className="px-2 py-1 bg-zinc-200 w-52 text-black" placeholder="Name"
+                                        <div className="mb-5">
+                                            <span className="mr-14">Введите имя</span>
+                                            <input
+                                                type="text"
+                                                className="px-2 py-1 bg-zinc-200 w-52 text-black"
+                                                placeholder="Name"
                                                 value={newName}
-                                                onChange={(e) => setNewName(e.target.value)} />
+                                                onChange={(e) => setNewName(e.target.value)}
+                                            />
                                         </div>
-                                        <div> <span className="mr-7">Введите телефон</span>
-                                            <input type="text" className="px-2 py-1 bg-zinc-200 w-52 text-black" placeholder="Phone"
+                                        <div>
+                                            <span className="mr-7">Введите телефон</span>
+                                            <input
+                                                type="text"
+                                                className="px-2 py-1 bg-zinc-200 w-52 text-black"
+                                                placeholder="Phone"
                                                 value={newPhone}
-                                                onChange={(e) => setNewPhone(e.target.value)} />
+                                                onChange={(e) => setNewPhone(e.target.value)}
+                                            />
                                         </div>
                                     </div>
                                     <button
-                                        className="bg-amber-900 text-white px-4 py-2 rounded-md mx-2 ml-20 w-20 hover:scale-105 "
+                                        className="bg-amber-900 text-white px-4 py-2 rounded-md mx-2 ml-20 w-20 hover:scale-105"
                                         onClick={addContactHandler}
                                     >
                                         Add
@@ -130,9 +206,56 @@ export default function PhoneBook() {
                     </AccordionItem>
                 </Accordion>
 
+                {loginForm && <div className="flex justify-center items-center mt-10">
+                    <Card className="w-full max-w-sm">
+                        <CardHeader>
+                            <CardTitle>Login to your account</CardTitle>
+                            <CardDescription>
+                                Enter your email below to login to your account
+                            </CardDescription>
+                            <CardAction>
+                                <Button variant="link">Sign Up</Button>
+                            </CardAction>
+                        </CardHeader>
+                        <CardContent>
+                            <form>
+                                <div className="flex flex-col gap-6">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="email">Email</Label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            placeholder="m@example.com"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <div className="flex items-center">
+                                            <Label htmlFor="password">Password</Label>
+                                            <a
+                                                href="#"
+                                                className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                                            >
+                                                Forgot your password?
+                                            </a>
+                                        </div>
+                                        <Input id="password" type="password" required />
+                                    </div>
+                                </div>
+                            </form>
+                        </CardContent>
+                        <CardFooter className="flex-col gap-2">
+                            <Button type="submit" className="w-full">
+                                Login
+                            </Button>
+                            <Button variant="outline" className="w-full">
+                                Login with Google
+                            </Button>
+                        </CardFooter>
+                    </Card>
 
+                </div>}
             </div>
-
         </div>
     );
-};
+}
