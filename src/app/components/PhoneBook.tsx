@@ -29,7 +29,15 @@ export default function PhoneBook() {
     const [newName, setNewName] = useState<string>("");
     const [newPhone, setNewPhone] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(true);
+
     const [loginForm, actualLoginForm] = useState<boolean>(false);
+
+    const [isLoginMode, setIsLoginMode] = useState<boolean>(true); // true = вход, false = регистрация
+    const [email, setEmail] = useState<string>("");
+    const [password, setPassword] = useState<string>("");
+    const [confirmPassword, setConfirmPassword] = useState<string>("");
+    const [authError, setAuthError] = useState<string>("");
+
 
 
     // Загружаем контакты при первом рендере
@@ -121,13 +129,92 @@ export default function PhoneBook() {
         }
     };
 
+    const handleRegister = async () => {
+        setAuthError("");
+
+        if (!email || !password || !confirmPassword) {
+            setAuthError("Заполните все поля!");
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setAuthError("Пароли не совпадают!");
+            return;
+        }
+
+        if (password.length < 6) {
+            setAuthError("Пароль должен быть минимум 6 символов!");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert("Регистрация успешна! Теперь войдите.");
+                setIsLoginMode(true);
+                setEmail("");
+                setPassword("");
+                setConfirmPassword("");
+            } else {
+                setAuthError(data.error || "Ошибка регистрации");
+            }
+        } catch (error) {
+            setAuthError("Ошибка соединения с сервером");
+            console.error(error);
+        }
+    };
+
+    // Функция для входа
+    const handleLogin = async () => {
+        setAuthError("");
+
+        if (!email || !password) {
+            setAuthError("Заполните все поля!");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert("Вход выполнен успешно!");
+                actualLoginForm(false);
+            } else {
+                setAuthError(data.error || "Неверный email или пароль");
+            }
+        } catch (error) {
+            setAuthError("Ошибка соединения с сервером");
+            console.error(error);
+        }
+    };
+
+    // Переключение между входом и регистрацией
+    const toggleAuthMode = () => {
+        setIsLoginMode(!isLoginMode);
+        setAuthError("");
+        setConfirmPassword("");
+    };
+
     if (loading) {
         return <div className="text-center p-4">Загрузка контактов...</div>;
     }
 
     return (
         <div>
-            <Header actualLoginForm={actualLoginForm} loginForm={loginForm} />
+            
             <div className="flex flex-col w-full text-left border-collapse w-[80%]">
 
                 <table className="flex flex-col w-full text-left border-collapse w-[80%]">
@@ -209,51 +296,87 @@ export default function PhoneBook() {
                 {loginForm && <div className="flex justify-center items-center mt-10">
                     <Card className="w-full max-w-sm">
                         <CardHeader>
-                            <CardTitle>Login to your account</CardTitle>
+                            <CardTitle>
+                                {isLoginMode ? "Вход в аккаунт" : "Регистрация"}
+                            </CardTitle>
                             <CardDescription>
-                                Enter your email below to login to your account
+                                {isLoginMode
+                                    ? "Введите email и пароль для входа"
+                                    : "Создайте новый аккаунт"}
                             </CardDescription>
-                            <CardAction>
-                                <Button variant="link">Sign Up</Button>
-                            </CardAction>
                         </CardHeader>
+
                         <CardContent>
-                            <form>
-                                <div className="flex flex-col gap-6">
+                            <div className="flex flex-col gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        placeholder="m@example.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="password">Пароль</Label>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                {!isLoginMode && (
                                     <div className="grid gap-2">
-                                        <Label htmlFor="email">Email</Label>
+                                        <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
                                         <Input
-                                            id="email"
-                                            type="email"
-                                            placeholder="m@example.com"
+                                            id="confirmPassword"
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
                                             required
                                         />
                                     </div>
-                                    <div className="grid gap-2">
-                                        <div className="flex items-center">
-                                            <Label htmlFor="password">Password</Label>
-                                            <a
-                                                href="#"
-                                                className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                                            >
-                                                Forgot your password?
-                                            </a>
-                                        </div>
-                                        <Input id="password" type="password" required />
+                                )}
+
+                                {authError && (
+                                    <div className="text-red-500 text-sm bg-red-50 p-2 rounded">
+                                        {authError}
                                     </div>
-                                </div>
-                            </form>
+                                )}
+
+                                <Button
+                                    onClick={isLoginMode ? handleLogin : handleRegister}
+                                    className="w-full"
+                                >
+                                    {isLoginMode ? "Войти" : "Зарегистрироваться"}
+                                </Button>
+                            </div>
                         </CardContent>
-                        <CardFooter className="flex-col gap-2">
-                            <Button type="submit" className="w-full">
-                                Login
+
+                        <CardFooter className="flex flex-col gap-2">
+                            <Button
+                                variant="link"
+                                onClick={toggleAuthMode}
+                                className="w-full"
+                            >
+                                {isLoginMode
+                                    ? "Нет аккаунта? Зарегистрируйтесь"
+                                    : "Уже есть аккаунт? Войдите"}
                             </Button>
-                            <Button variant="outline" className="w-full">
-                                Login with Google
-                            </Button>
+
+                            {isLoginMode && (
+                                <Button variant="outline" className="w-full">
+                                    Войти через Google
+                                </Button>
+                            )}
                         </CardFooter>
                     </Card>
-
                 </div>}
             </div>
         </div>
