@@ -29,8 +29,11 @@ export default function PhoneBook() {
     const [newName, setNewName] = useState<string>("");
     const [newPhone, setNewPhone] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(true);
-
     const [loginForm, actualLoginForm] = useState<boolean>(false);
+
+    // 🆕 ВАЖНО: Храним информацию о залогиненном пользователе!
+    const [currentUser, setCurrentUser] = useState<{ id: number; email: string } | null>(null);
+    const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
     const [isLoginMode, setIsLoginMode] = useState<boolean>(true); // true = вход, false = регистрация
     const [email, setEmail] = useState<string>("");
@@ -40,15 +43,20 @@ export default function PhoneBook() {
 
 
 
-    // Загружаем контакты при первом рендере
+    // Загружаем контакты только если пользователь залогинен
     useEffect(() => {
-        loadContacts();
-    }, []);
+        if (isLoggedIn && currentUser) {
+            loadContacts();
+        }
+    }, [isLoggedIn, currentUser]);
 
     const loadContacts = async () => {
+        if (!currentUser) return;
+
         setLoading(true);
         try {
-            const contactsList = await phoneBookAPI.getAllContacts();
+            // 🆕 Передаём userId!
+            const contactsList = await phoneBookAPI.getAllContacts(currentUser.id);
             setContacts(contactsList);
         } catch (error) {
             console.error("Ошибка загрузки контактов:", error);
@@ -58,28 +66,37 @@ export default function PhoneBook() {
     };
 
     const editNameContactHandler = async (id: number, newName: string) => {
+        if (!currentUser) return;
+        
         try {
-            await phoneBookAPI.updateContact(id, { name: newName });
-            await loadContacts(); // Перезагружаем список
+            // 🆕 Передаём userId!
+            await phoneBookAPI.updateContact(id, { name: newName }, currentUser.id);
+            await loadContacts();
         } catch (error) {
             console.error("Ошибка обновления имени:", error);
         }
     };
 
     const editNumContactHandler = async (id: number, newPhone: string) => {
+        if (!currentUser) return;
+        
         try {
-            await phoneBookAPI.updateContact(id, { phone: newPhone });
-            await loadContacts(); // Перезагружаем список
+            // 🆕 Передаём userId!
+            await phoneBookAPI.updateContact(id, { phone: newPhone }, currentUser.id);
+            await loadContacts();
         } catch (error) {
             console.error("Ошибка обновления телефона:", error);
         }
     };
 
     const deleteIdHandler = async (id: number) => {
+        if (!currentUser) return;
+        
         try {
-            const success = await phoneBookAPI.deleteContact(id);
+            // 🆕 Передаём userId!
+            const success = await phoneBookAPI.deleteContact(id, currentUser.id);
             if (success) {
-                await loadContacts(); // Перезагружаем список
+                await loadContacts();
             } else {
                 alert("Не удалось удалить контакт");
             }
@@ -99,27 +116,28 @@ export default function PhoneBook() {
 
     // Обработчик добавления нового контакта
     const addContactHandler = async () => {
-        // Проверяем, что поля не пустые
+        if (!currentUser) {
+            alert("Сначала войдите в систему!");
+            return;
+        }
+        
         if (newName.trim() === "" || newPhone.trim() === "") {
             alert("Пожалуйста, заполните все поля!");
             return;
         }
 
         try {
+            // 🆕 Передаём userId!
             const result = await phoneBookAPI.addContact({
                 name: newName,
-                phone: newPhone
+                phone: newPhone,
+                userId: currentUser.id  // ← Привязываем к текущему пользователю
             });
 
             if (result) {
-                // Перезагружаем список контактов
                 await loadContacts();
-
-                // Очищаем поля ввода
                 setNewName("");
                 setNewPhone("");
-
-                console.log("Добавлен контакт:", result);
             } else {
                 alert("Не удалось добавить контакт");
             }
@@ -172,34 +190,38 @@ export default function PhoneBook() {
     };
 
     // Функция для входа
-    const handleLogin = async () => {
-        setAuthError("");
+   // 🆕 ВАЖНО: При успешном логине сохраняем данные пользователя!
+   const handleLogin = async () => {
+    setAuthError("");
 
-        if (!email || !password) {
-            setAuthError("Заполните все поля!");
-            return;
+    if (!email || !password) {
+        setAuthError("Заполните все поля!");
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // 🆕 Сохраняем пользователя в state!
+            setCurrentUser(data.user);
+            setIsLoggedIn(true);
+            actualLoginForm(false);
+            alert(`Добро пожаловать, ${data.user.email}!`);
+        } else {
+            setAuthError(data.error || "Неверный email или пароль");
         }
-
-        try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                alert("Вход выполнен успешно!");
-                actualLoginForm(false);
-            } else {
-                setAuthError(data.error || "Неверный email или пароль");
-            }
-        } catch (error) {
-            setAuthError("Ошибка соединения с сервером");
-            console.error(error);
-        }
-    };
+    } catch (error) {
+        setAuthError("Ошибка соединения с сервером");
+        console.error(error);
+    }
+};
 
     // Переключение между входом и регистрацией
     const toggleAuthMode = () => {
@@ -208,13 +230,106 @@ export default function PhoneBook() {
         setConfirmPassword("");
     };
 
+    // 🆕 Если не залогинен - показываем форму входа
+    if (!isLoggedIn) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div>Пожалуйста, войдите в систему</div>
+                <div></div>
+                <Card className="w-full max-w-sm">
+                        <CardHeader>
+                            <CardTitle>
+                                {isLoginMode ? "Вход в аккаунт" : "Регистрация"}
+                            </CardTitle>
+                            <CardDescription>
+                                {isLoginMode
+                                    ? "Введите email и пароль для входа"
+                                    : "Создайте новый аккаунт"}
+                            </CardDescription>
+                        </CardHeader>
+
+                        <CardContent>
+                            <div className="flex flex-col gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        placeholder="m@example.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="password">Пароль</Label>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                {!isLoginMode && (
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
+                                        <Input
+                                            id="confirmPassword"
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                )}
+
+                                {authError && (
+                                    <div className="text-red-500 text-sm bg-red-50 p-2 rounded">
+                                        {authError}
+                                    </div>
+                                )}
+
+                                <Button
+                                    onClick={isLoginMode ? handleLogin : handleRegister}
+                                    className="w-full"
+                                >
+                                    {isLoginMode ? "Войти" : "Зарегистрироваться"}
+                                </Button>
+                            </div>
+                        </CardContent>
+
+                        <CardFooter className="flex flex-col gap-2">
+                            <Button
+                                variant="link"
+                                onClick={toggleAuthMode}
+                                className="w-full"
+                            >
+                                {isLoginMode
+                                    ? "Нет аккаунта? Зарегистрируйтесь"
+                                    : "Уже есть аккаунт? Войдите"}
+                            </Button>
+
+                            {isLoginMode && (
+                                <Button variant="outline" className="w-full">
+                                    Войти через Google
+                                </Button>
+                            )}
+                        </CardFooter>
+                    </Card>
+            </div>
+        );
+    }
+
     if (loading) {
         return <div className="text-center p-4">Загрузка контактов...</div>;
     }
 
     return (
         <div>
-            
+
             <div className="flex flex-col w-full text-left border-collapse w-[80%]">
 
                 <table className="flex flex-col w-full text-left border-collapse w-[80%]">

@@ -3,16 +3,18 @@ export interface Contact {
     id: number;
     name: string;
     phone: string;
+    userId: number;  // 🆕 Добавили userId
     createdAt?: Date;
     updatedAt?: Date;
 }
 
 // API для работы с контактами через HTTP запросы
 export const phoneBookAPI = {
-    // Получить все контакты
-    getAllContacts: async (): Promise<Contact[]> => {
+    // Получить контакты конкретного пользователя
+    // 🆕 Теперь требуется userId!
+    getAllContacts: async (userId: number): Promise<Contact[]> => {
         try {
-            const response = await fetch('/api/contacts');
+            const response = await fetch(`/api/contacts?userId=${userId}`);
             if (!response.ok) {
                 throw new Error('Не удалось получить контакты');
             }
@@ -25,7 +27,8 @@ export const phoneBookAPI = {
     },
     
     // Добавить новый контакт
-    addContact: async (contactData: { name: string; phone: string }): Promise<Contact | null> => {
+    // 🆕 Теперь требуется userId!
+    addContact: async (contactData: { name: string; phone: string; userId: number }): Promise<Contact | null> => {
         try {
             const response = await fetch('/api/contacts', {
                 method: 'POST',
@@ -48,9 +51,10 @@ export const phoneBookAPI = {
     },
     
     // Удалить контакт по ID
-    deleteContact: async (id: number): Promise<boolean> => {
+    // 🆕 Добавили userId для проверки прав
+    deleteContact: async (id: number, userId: number): Promise<boolean> => {
         try {
-            const response = await fetch(`/api/contacts/${id}`, {
+            const response = await fetch(`/api/contacts/${id}?userId=${userId}`, {
                 method: 'DELETE',
             });
 
@@ -62,14 +66,15 @@ export const phoneBookAPI = {
     },
     
     // Обновить контакт
-    updateContact: async (id: number, updates: { name?: string; phone?: string }): Promise<Contact | null> => {
+    // 🆕 Добавили userId для проверки прав
+    updateContact: async (id: number, updates: { name?: string; phone?: string }, userId: number): Promise<Contact | null> => {
         try {
             const response = await fetch(`/api/contacts/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(updates),
+                body: JSON.stringify({ ...updates, userId }),
             });
 
             if (!response.ok) {
