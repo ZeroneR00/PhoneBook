@@ -48,10 +48,23 @@ export const authOptions: NextAuthOptions = {
   // 🔑 Секретный ключ
   secret: process.env.NEXTAUTH_SECRET,
 
-  // 📊 Настройки сессии
+  // 📊 Настройки сессии (КРИТИЧЕСКИ ВАЖНО!)
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 дней
+  },
+
+  // 🍪 Настройки cookies (ДОБАВИЛИ!)
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false, // ← false для localhost (http)
+      }
+    }
   },
 
   // 📄 Кастомные страницы
@@ -59,12 +72,19 @@ export const authOptions: NextAuthOptions = {
     signIn: "/", // Твоя главная страница
   },
 
+  // 🐛 Debug режим (ДОБАВИЛИ для диагностики)
+  debug: true, // ← Покажет подробные логи в консоли
+
   // 🎨 Callbacks
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       // Добавляем userId в токен при логине
       if (user) {
         token.id = user.id;
+      }
+      // 🔥 КРИТИЧЕСКИ ВАЖНО: Устанавливаем флаг что это credentials
+      if (account) {
+        token.accessToken = account.access_token;
       }
       return token;
     },
@@ -74,6 +94,16 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
       }
       return session;
+    },
+  },
+  
+  // 🔥 ДОБАВИЛИ: События для дебага
+  events: {
+    async signIn({ user, account, profile }) {
+      console.log("✅ Пользователь вошел:", user.email);
+    },
+    async signOut({ token }) {
+      console.log("🚪 Пользователь вышел");
     },
   },
 };
